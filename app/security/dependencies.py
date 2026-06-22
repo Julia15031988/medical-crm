@@ -3,9 +3,9 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.database.session import get_db
-from src.database.models.user import User, UserRoleEnum
-from src.security.jwt_manager import jwt_manager  # твій клас для роботи з JWT
+from app.databasemodels.sessions import get_db
+from app.databasemodels.modelsauth import User, UserRoleEnum
+from app.security.jwt_manager import jwt_manager
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
