@@ -1,5 +1,5 @@
 import enum
-from src.database.models.base import Base
+from app.databasemodels.base import Base
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from sqlalchemy import (
