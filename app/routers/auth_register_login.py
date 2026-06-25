@@ -1,50 +1,196 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
-from passlib.context import CryptContext
-from app.databasemodels.modelsauth import User
+from sqlalchemy import select, delete
+from datetime import datetime, timedelta
 from app.databasemodels.sessions import get_db
-from app.schemas.user import UserRegistrationRequestSchema, UserLoginRequestSchema, UserLoginResponseSchema
+from app.databasemodels.modelsauth import User, PasswordResetToken
+from app.security.passwords import hash_password, verify_password
 from app.security.token_manager import JWTAuthManager
+from app.configuration.dependencies import get_jwt_auth_manager
 from app.configuration.settings import settings
-
-router = APIRouter(prefix="/auth", tags=["auth"])
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-jwt_manager = JWTAuthManager(
-    secret_key_access=settings.SECRET_KEY_ACCESS,
-    secret_key_refresh=settings.SECRET_KEY_REFRESH,
-    algorithm=settings.ALGORITHM,
+from app.configuration.dependencies import get_current_user
+from app.crud.auth import (
+    get_user_by_email,
+    create_user,
+    create_activation_token,
+    verify_activation_token,
+    create_refresh_token,
+    revoke_refresh_token,
+    get_refresh_token,
+    create_password_reset_token,
+    verify_password_reset_token,
+)
+from app.schemas.user import (
+    UserRegistrationRequestSchema,
+    UserRegistrationResponseSchema,
+    #ResendActivationRequestSchema,
+    UserLoginRequestSchema,
+    UserLoginResponseSchema,
+    TokenRefreshRequestSchema,
+    PasswordResetRequestSchema,
+    #PasswordResetCompleteRequestSchema,
+    UserChangePasswordRequestSchema,
 )
 
+
+router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
+
+
 # --- Registration ---
-@router.post("/register", status_code=status.HTTP_201_CREATED)
-async def register(payload: UserRegistrationRequestSchema, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).where(User.email == payload.email))
-    existing_user = result.scalar_one_or_none()
-    if existing_user:
-        raise HTTPException(status_code=409, detail="Email already registered")
+@router.post(
+    "/register",
+    response_model=UserRegistrationResponseSchema,
+    status_code=status.HTTP_201_CREATED,
+)
+async def register(
+    payload: UserRegistrationRequestSchema, db: AsyncSession = Depends(get_db)
+):
+    existing = await get_user_by_email(db, payload.email)
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Email already registered"
+        )
+    user = await create_user(db, email=payload.email, password=payload.password)
+    at = await create_activation_token(db, user)
+    link = f"https://your-frontend/activate?token={at.token}"
+    await send_email(user.email, "Activate your account", f"Click to activate: {link}")
+    return user
 
-    hashed_pw = pwd_context.hash(payload.password)
-    new_user = User(email=payload.email, hashed_password=hashed_pw, role=payload.role)
-    db.add(new_user)
-    await db.commit()
-    await db.refresh(new_user)
-    return {"detail": "User registered successfully"}
 
-# --- Login ---
+# --- Activation ---
+@router.get("/activate")
+async def activate(token: str, db: AsyncSession = Depends(get_db)):
+    user = await verify_activation_token(db, token)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired token"
+        )
+    return {"detail": "Account activated"}
+
+
+#@router.post("/resend-activation")
+#async def resend_activation(
+    #payload: ResendActivationRequestSchema, db: AsyncSession = Depends(get_db)
+#):
+    #user = await get_user_by_email(db, payload.email)
+    #if not user:
+        #return {"detail": "If the email is registered, activation email was sent"}
+    #if user.is_active:
+        #return {"detail": "Account already active"}
+    #at = await create_activation_token(db, user)
+    #link = f"https://your-frontend/activate?token={at.token}"
+    #await send_email(user.email, "Activate your account", f"Click to activate: {link}")
+    #return {"detail": "Activation email sent"}
+
+
+# --- Login & Tokens ---
 @router.post("/login", response_model=UserLoginResponseSchema)
-async def login(payload: UserLoginRequestSchema, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).where(User.email == payload.email))
-    user = result.scalar_one_or_none()
-    if not user or not pwd_context.verify(payload.password, user.hashed_password):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-
-    access_token = jwt_manager.create_access_token({"user_id": user.id})
-    refresh_token = jwt_manager.create_refresh_token({"user_id": user.id})
+async def login(
+    payload: UserLoginRequestSchema,
+    db: AsyncSession = Depends(get_db),
+    jwt: JWTAuthManager = Depends(get_jwt_auth_manager),
+):
+    user = await get_user_by_email(db, payload.email)
+    if not user or not verify_password(payload.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
+        )
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Account not activated"
+        )
+    access_token = jwt.create_access_token({"user_id": user.id, "email": user.email})
+    rt = await create_refresh_token(db, user.id)
     return {
         "access_token": access_token,
-        "refresh_token": refresh_token,
+        "refresh_token": rt.token,
         "token_type": "bearer",
-        "expires_in": 3600,
     }
+
+
+@router.post("/refresh", response_model=UserLoginResponseSchema)
+async def refresh(
+    payload: TokenRefreshRequestSchema,
+    db: AsyncSession = Depends(get_db),
+    jwt: JWTAuthManager = Depends(get_jwt_auth_manager),
+):
+    token_row = await get_refresh_token(db, payload.refresh_token)
+    if not token_row:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
+        )
+    if token_row.expires_at < datetime.utcnow():
+        await revoke_refresh_token(db, token_row.token)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token expired"
+        )
+    access_token = jwt.create_access_token({"user_id": token_row.user_id})
+    return {
+        "access_token": access_token,
+        "refresh_token": token_row.token,
+        "token_type": "bearer",
+    }
+
+
+@router.post("/logout")
+async def logout(
+    payload: TokenRefreshRequestSchema, db: AsyncSession = Depends(get_db)
+):
+    await revoke_refresh_token(db, payload.refresh_token)
+    return {"detail": "Logged out"}
+
+
+# --- Password Reset ---
+@router.post("/forgot-password")
+async def forgot_password(
+    payload: TokenRefreshRequestSchema, db: AsyncSession = Depends(get_db)
+):
+    user = await get_user_by_email(db, payload.email)
+    if not user or not user.is_active:
+        return {"detail": "If the email is registered, a reset link was sent"}
+    pr = await create_password_reset_token(db, user)
+    link = f"https://your-frontend/reset-password?token={pr.token}"
+    await send_email(user.email, "Reset your password", f"Click to reset: {link}")
+    return {"detail": "If the email is registered, a reset link was sent"}
+
+
+@router.post("/reset-password")
+async def reset_password(
+    payload: PasswordResetRequestSchema, db: AsyncSession = Depends(get_db)
+):
+    q = await db.execute(
+        select(PasswordResetToken).where(PasswordResetToken.token == payload.token)
+    )
+    pr = q.scalars().first()
+    if not pr or pr.expires_at < datetime.utcnow():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired token"
+        )
+    user_q = await db.execute(select(User).where(User.id == pr.user_id))
+    user = user_q.scalars().first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid token"
+        )
+    user.hashed_password = hash_password(payload.new_password)
+    await db.execute(
+        delete(PasswordResetToken).where(PasswordResetToken.user_id == user.id)
+    )
+    await db.commit()
+    return {"detail": "Password updated"}
+
+
+@router.post("/change-password")
+async def change_password(
+    payload: UserChangePasswordRequestSchema,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if not verify_password(payload.old_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Old password is incorrect"
+        )
+    current_user.hashed_password = hash_password(payload.new_password)
+    await db.commit()
+    return {"detail": "Password changed"}
+

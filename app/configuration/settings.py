@@ -1,31 +1,77 @@
+from pathlib import Path
+import os
 from pydantic_settings import BaseSettings
 
-class Settings(BaseSettings):
-    DATABASE_URL: str
-    SECRET_KEY_ACCESS: str
-    SECRET_KEY_REFRESH: str
-    ALGORITHM: str = "HS256"
 
-    # --- Tokens ---
-    ACTIVATION_TOKEN_EXPIRE_HOURS: int = 24
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
-    PASSWORD_RESET_TOKEN_EXPIRE_HOURS: int = 2
+class BaseAppSettings(BaseSettings):
+    BASE_DIR: Path = Path(__file__).parent.parent
+    PATH_TO_DB: str = str(BASE_DIR / "database" / "medical_crm.db")
+    PATH_TO_PATIENTS_CSV: str = str(BASE_DIR / "database" / "seed_data" / "patients.csv")
 
-    # --- Email ---
-    EMAIL_HOST: str
-    EMAIL_PORT: int
-    EMAIL_HOST_USER: str
-    EMAIL_HOST_PASSWORD: str
-    EMAIL_USE_TLS: bool = True
-    PATH_TO_EMAIL_TEMPLATES_DIR: str = "app/templates/emails"
-    ACTIVATION_EMAIL_TEMPLATE_NAME: str = "activation.html"
+    # --- Email templates ---
+    PATH_TO_EMAIL_TEMPLATES_DIR: str = str(BASE_DIR / "notifications" / "templates")
+    ACTIVATION_EMAIL_TEMPLATE_NAME: str = "activation_request.html"
     ACTIVATION_COMPLETE_EMAIL_TEMPLATE_NAME: str = "activation_complete.html"
-    PASSWORD_RESET_TEMPLATE_NAME: str = "password_reset.html"
+    PASSWORD_RESET_TEMPLATE_NAME: str = "password_reset_request.html"
     PASSWORD_RESET_COMPLETE_TEMPLATE_NAME: str = "password_reset_complete.html"
-    SUCCESS_PAYMENT_TEMPLATE_NAME: str = "success_payment.html"
+    PASSWORD_CHANGE_NAME: str = "password_change.html"
+
+    APPOINTMENT_REMINDER_TEMPLATE_NAME: str = "appointment_reminder.html"
+    LAB_RESULTS_TEMPLATE_NAME: str = "lab_results.html"
+    INVOICE_TEMPLATE_NAME: str = "invoice.html"
+
+    LOGIN_TIME_DAYS: int = 7
+
+    # --- Email SMTP ---
+    EMAIL_HOST: str = os.getenv("EMAIL_HOST", "host")
+    EMAIL_PORT: int = int(os.getenv("EMAIL_PORT", 25))
+    EMAIL_HOST_USER: str = os.getenv("EMAIL_HOST_USER", "testuser")
+    EMAIL_HOST_PASSWORD: str = os.getenv("EMAIL_HOST_PASSWORD", "test_password")
+    EMAIL_USE_TLS: bool = os.getenv("EMAIL_USE_TLS", "False").lower() == "true"
+
+    # --- Queue/Tasks ---
+    CELERY_BROKER_URL: str = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
+    CELERY_RESULT_BACKEND: str = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
+
+    # --- Storage ---
+    S3_STORAGE_HOST: str = os.getenv("MINIO_HOST", "minio-crm")
+    S3_STORAGE_PORT: int = int(os.getenv("MINIO_PORT", 9000))
+    S3_STORAGE_ACCESS_KEY: str = os.getenv("MINIO_ROOT_USER", "minioadmin")
+    S3_STORAGE_SECRET_KEY: str = os.getenv("MINIO_ROOT_PASSWORD", "some_password")
+    S3_BUCKET_NAME: str = os.getenv("MINIO_STORAGE", "crm-storage")
+
+    @property
+    def S3_STORAGE_ENDPOINT(self) -> str:
+        return f"http://{self.S3_STORAGE_HOST}:{self.S3_STORAGE_PORT}"
 
     class Config:
         env_file = ".env"
 
-settings = Settings()
 
+class Settings(BaseAppSettings):
+    # --- Database ---
+    POSTGRES_USER: str = os.getenv("POSTGRES_USER", "crm_user")
+    POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "crm_password")
+    POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "localhost")
+    POSTGRES_DB_PORT: int = int(os.getenv("POSTGRES_DB_PORT", "5432"))
+    POSTGRES_DB: str = os.getenv("POSTGRES_DB", "crm_db")
+
+    # --- JWT ---
+    SECRET_KEY_ACCESS: str = os.getenv("SECRET_KEY_ACCESS", os.urandom(32).hex())
+    SECRET_KEY_REFRESH: str = os.getenv("SECRET_KEY_REFRESH", os.urandom(32).hex())
+    JWT_SIGNING_ALGORITHM: str = os.getenv("JWT_SIGNING_ALGORITHM", "HS256")
+
+    # --- Token lifetimes ---
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
+    REFRESH_TOKEN_EXPIRE_DAYS: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "30"))
+
+    @property
+    def DATABASE_URL(self) -> str:
+        return (
+            f"postgresql+asyncpg://"
+            f"{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@"
+            f"{self.POSTGRES_HOST}:{self.POSTGRES_DB_PORT}/"
+            f"{self.POSTGRES_DB}"
+        )
+
+settings = Settings()
