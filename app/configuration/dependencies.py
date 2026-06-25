@@ -17,9 +17,9 @@ from app.security.token_manager import JWTAuthManager
 from app.security.interfaces import JWTAuthManagerInterface
 from app.configuration.settings import settings, get_settings, TestingSettings
 from app.configuration.settings import BaseAppSettings
-#from app.exceptions import BaseSecurityError, TokenExpiredError, S3FileUploadError
-#from app.notifications.emails import EmailSenderInterface, EmailSender
-#from app.exceptions.storage import S3StorageInterface, S3StorageClient
+from app.exceptions.security import BaseSecurityError, TokenExpiredError, S3FileUploadError
+from app.email_notifications.emails import EmailSenderInterface, EmailSender
+from app.exceptions.storage import S3StorageInterface, S3StorageClient
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
