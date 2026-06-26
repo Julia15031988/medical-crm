@@ -12,12 +12,13 @@ from app.databasemodels.modelsauth import (
     DoctorProfile,
     PatientProfile,
 )
-from app.security import get_token
+#from app.security.token_manager import JWTAuthManager
+from app.security.getbearertoken import get_token
 from app.security.token_manager import JWTAuthManager
 from app.security.interfaces import JWTAuthManagerInterface
-from app.configuration.settings import settings, get_settings, TestingSettings
+from app.configuration.settings import settings
 from app.configuration.settings import BaseAppSettings
-from app.exceptions.security import BaseSecurityError, TokenExpiredError, S3FileUploadError
+from app.exceptions.security import BaseSecurityError, TokenExpiredError
 from app.email_notifications.emails import EmailSenderInterface, EmailSender
 from app.exceptions.storage import S3StorageInterface, S3StorageClient
 
@@ -67,7 +68,8 @@ def get_current_admin(user: User = Depends(get_current_user)):
 
 
 def get_accounts_email_notificator(
-    settings: BaseAppSettings = Depends(get_settings),
+    #ettings: BaseAppSettings = Depends(get_settings),
+    settings: BaseAppSettings = settings
 ) -> EmailSenderInterface:
     """
     Retrieve an instance of the EmailSenderInterface configured with the application settings.

@@ -1,6 +1,8 @@
 from pathlib import Path
 import os
 from pydantic_settings import BaseSettings
+from functools import lru_cache
+from typing import Any
 
 
 class BaseAppSettings(BaseSettings):
@@ -55,15 +57,19 @@ class Settings(BaseAppSettings):
     POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "localhost")
     POSTGRES_DB_PORT: int = int(os.getenv("POSTGRES_DB_PORT", "5432"))
     POSTGRES_DB: str = os.getenv("POSTGRES_DB", "crm_db")
+    DATABASE_URL: str = os.getenv("DATABASE_URL")
 
     # --- JWT ---
     SECRET_KEY_ACCESS: str = os.getenv("SECRET_KEY_ACCESS", os.urandom(32).hex())
     SECRET_KEY_REFRESH: str = os.getenv("SECRET_KEY_REFRESH", os.urandom(32).hex())
     JWT_SIGNING_ALGORITHM: str = os.getenv("JWT_SIGNING_ALGORITHM", "HS256")
+    ALGORITHM: str = os.getenv("ALGORITHM", "HS256")   # ← додано
 
     # --- Token lifetimes ---
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
     REFRESH_TOKEN_EXPIRE_DAYS: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "30"))
+    ACTIVATION_TOKEN_EXPIRE_HOURS: int = int(os.getenv("ACTIVATION_TOKEN_EXPIRE_HOURS", "24"))  # ← додано
+    PASSWORD_RESET_TOKEN_EXPIRE_HOURS: int = int(os.getenv("PASSWORD_RESET_TOKEN_EXPIRE_HOURS", "2"))  # ← додано
 
     @property
     def DATABASE_URL(self) -> str:
@@ -74,4 +80,27 @@ class Settings(BaseAppSettings):
             f"{self.POSTGRES_DB}"
         )
 
-settings = Settings()
+
+class TestingSettings(BaseAppSettings):
+    SECRET_KEY_ACCESS: str = "SECRET_KEY_ACCESS"
+    SECRET_KEY_REFRESH: str = "SECRET_KEY_REFRESH"
+    JWT_SIGNING_ALGORITHM: str = "HS256"
+    ALGORITHM: str = "HS256"
+    ACTIVATION_TOKEN_EXPIRE_HOURS: int = 24
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+    PASSWORD_RESET_TOKEN_EXPIRE_HOURS: int = 2
+    DATABASE_URL: str = "sqlite+aiosqlite:///./test.db"
+
+    def model_post_init(self, __context: dict[str, Any] | None = None) -> None:
+        object.__setattr__(self, "PATH_TO_DB", "sqlite+aiosqlite:///./test.db")
+
+
+@lru_cache
+def get_settings() -> BaseAppSettings:
+    # для тестів
+    return TestingSettings()
+    # для продакшн
+    # return Settings()
+
+# Використовуй get_settings() замість прямого Settings()
+settings = get_settings()
