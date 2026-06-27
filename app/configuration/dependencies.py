@@ -20,10 +20,10 @@ from app.configuration.settings import settings
 from app.configuration.settings import BaseAppSettings
 from app.exceptions.security import BaseSecurityError, TokenExpiredError
 from app.email_notifications.emails import EmailSenderInterface, EmailSender
-from app.exceptions.storage import S3StorageInterface, S3StorageClient
+#from app.exceptions.storage import S3StorageInterface, S3StorageClient
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+#oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 
 def get_jwt_auth_manager() -> JWTAuthManager:
@@ -35,7 +35,7 @@ def get_jwt_auth_manager() -> JWTAuthManager:
 
 
 async def get_current_user(
-    token: str = Depends(oauth2_scheme),
+    token: str = Depends(get_token),
     db: AsyncSession = Depends(get_db),
     jwt: JWTAuthManager = Depends(get_jwt_auth_manager),
 ):

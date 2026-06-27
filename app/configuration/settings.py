@@ -84,12 +84,13 @@ class Settings(BaseAppSettings):
 class TestingSettings(BaseAppSettings):
     SECRET_KEY_ACCESS: str = "SECRET_KEY_ACCESS"
     SECRET_KEY_REFRESH: str = "SECRET_KEY_REFRESH"
-    JWT_SIGNING_ALGORITHM: str = "HS256"
-    ALGORITHM: str = "HS256"
     ACTIVATION_TOKEN_EXPIRE_HOURS: int = 24
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
     PASSWORD_RESET_TOKEN_EXPIRE_HOURS: int = 2
     DATABASE_URL: str = "sqlite+aiosqlite:///./test.db"
+    JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
+    JWT_SIGNING_ALGORITHM: str = os.getenv("JWT_SIGNING_ALGORITHM", "HS256")
+    ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
 
     def model_post_init(self, __context: dict[str, Any] | None = None) -> None:
         object.__setattr__(self, "PATH_TO_DB", "sqlite+aiosqlite:///./test.db")

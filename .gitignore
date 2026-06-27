@@ -170,3 +170,10 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Alembic cache
+migrations/__pycache__/
+migrations/versions/__pycache__/
+
+# Local-only init script
+init_db.py

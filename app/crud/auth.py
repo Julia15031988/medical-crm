@@ -9,6 +9,7 @@ from app.databasemodels.modelsauth import (
     ActivationToken,
     PasswordResetToken,
     RefreshToken,
+    UserRoleEnum,
 )
 from app.security.utils import hash_password
 from app.configuration.settings import settings
@@ -20,19 +21,13 @@ async def get_user_by_email(db: AsyncSession, email: str):
 
 
 async def create_user(
-    db: AsyncSession, email: str, password: str, group_name: str = "USER"
+    db: AsyncSession, email: str, password: str, role: UserRoleEnum = UserRoleEnum.PATIENT
 ):
     existing = await get_user_by_email(db, email)
     if existing:
         return None
     hashed = hash_password(password)
-    q = await db.execute(select(UserGroup).where(UserGroup.name == group_name))
-    group = q.scalars().first()
-    if not group:
-        group = UserGroup(name=group_name)
-        db.add(group)
-        await db.flush()
-    user = User(email=email, hashed_password=hashed, group_id=group.id)
+    user = User(email=email, hashed_password=hashed, role=role, is_active=False)
     db.add(user)
     await db.commit()
     await db.refresh(user)

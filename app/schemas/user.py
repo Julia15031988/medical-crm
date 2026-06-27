@@ -91,3 +91,7 @@ class TokenRefreshResponseSchema(BaseModel):
 # --- Messages ---
 class MessageResponseSchema(BaseModel):
     message: str
+
+
+class ResendActivationRequestSchema(BaseModel):
+    email: EmailStr

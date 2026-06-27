@@ -8,6 +8,7 @@ from app.security.passwords import hash_password, verify_password
 from app.security.token_manager import JWTAuthManager
 from app.configuration.dependencies import get_jwt_auth_manager
 from app.configuration.settings import settings
+from app.email_notifications.emails import EmailSender
 from app.configuration.dependencies import get_current_user
 from app.crud.auth import (
     get_user_by_email,
@@ -23,17 +24,31 @@ from app.crud.auth import (
 from app.schemas.user import (
     UserRegistrationRequestSchema,
     UserRegistrationResponseSchema,
-    #ResendActivationRequestSchema,
+    ResendActivationRequestSchema,
     UserLoginRequestSchema,
     UserLoginResponseSchema,
     TokenRefreshRequestSchema,
     PasswordResetRequestSchema,
-    #PasswordResetCompleteRequestSchema,
+    PasswordResetCompleteRequestSchema,
     UserChangePasswordRequestSchema,
 )
 
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
+
+email_sender = EmailSender(
+    hostname=settings.EMAIL_HOST,
+    port=settings.EMAIL_PORT,
+    email=settings.EMAIL_HOST_USER,
+    password=settings.EMAIL_HOST_PASSWORD,
+    use_tls=True,
+    template_dir="app/email_notifications/templates",
+    activation_email_template_name="activation.html",
+    activation_complete_email_template_name="activation_complete.html",
+    password_email_template_name="password_reset.html",
+    password_complete_email_template_name="password_reset_complete.html",
+    success_payment_template_name="payment_success.html",
+)
 
 
 # --- Registration ---
@@ -53,7 +68,7 @@ async def register(
     user = await create_user(db, email=payload.email, password=payload.password)
     at = await create_activation_token(db, user)
     link = f"https://your-frontend/activate?token={at.token}"
-    await send_email(user.email, "Activate your account", f"Click to activate: {link}")
+    await email_sender.send_activation_email(user.email, link)
     return user
 
 
@@ -68,19 +83,25 @@ async def activate(token: str, db: AsyncSession = Depends(get_db)):
     return {"detail": "Account activated"}
 
 
-#@router.post("/resend-activation")
-#async def resend_activation(
-    #payload: ResendActivationRequestSchema, db: AsyncSession = Depends(get_db)
-#):
-    #user = await get_user_by_email(db, payload.email)
-    #if not user:
-        #return {"detail": "If the email is registered, activation email was sent"}
-    #if user.is_active:
-        #return {"detail": "Account already active"}
-    #at = await create_activation_token(db, user)
-    #link = f"https://your-frontend/activate?token={at.token}"
-    #await send_email(user.email, "Activate your account", f"Click to activate: {link}")
-    #return {"detail": "Activation email sent"}
+@router.post("/resend-activation")
+async def resend_activation(
+    payload: ResendActivationRequestSchema,
+    db: AsyncSession = Depends(get_db),
+):
+    user = await get_user_by_email(db, payload.email)
+
+    if not user:
+        return {"detail": "If the email is registered, activation email was sent"}
+
+    if user.is_active:
+        return {"detail": "Account already active"}
+
+    at = await create_activation_token(db, user)
+    link = f"https://your-frontend/activate?token={at.token}"
+
+    await email_sender.send_activation_email(user.email, link)
+
+    return {"detail": "Activation email sent"}
 
 
 # --- Login & Tokens ---
@@ -105,6 +126,7 @@ async def login(
         "access_token": access_token,
         "refresh_token": rt.token,
         "token_type": "bearer",
+        "expires_in": 60 * 60,
     }
 
 
@@ -129,6 +151,7 @@ async def refresh(
         "access_token": access_token,
         "refresh_token": token_row.token,
         "token_type": "bearer",
+        "expires_in": 60 * 60,
     }
 
 
@@ -143,20 +166,22 @@ async def logout(
 # --- Password Reset ---
 @router.post("/forgot-password")
 async def forgot_password(
-    payload: TokenRefreshRequestSchema, db: AsyncSession = Depends(get_db)
+    payload: PasswordResetRequestSchema, db: AsyncSession = Depends(get_db)
 ):
     user = await get_user_by_email(db, payload.email)
     if not user or not user.is_active:
         return {"detail": "If the email is registered, a reset link was sent"}
     pr = await create_password_reset_token(db, user)
     link = f"https://your-frontend/reset-password?token={pr.token}"
-    await send_email(user.email, "Reset your password", f"Click to reset: {link}")
+
+
+    await email_sender.send_password_reset_email(user.email, link)
     return {"detail": "If the email is registered, a reset link was sent"}
 
 
 @router.post("/reset-password")
 async def reset_password(
-    payload: PasswordResetRequestSchema, db: AsyncSession = Depends(get_db)
+    payload: PasswordResetCompleteRequestSchema, db: AsyncSession = Depends(get_db)
 ):
     q = await db.execute(
         select(PasswordResetToken).where(PasswordResetToken.token == payload.token)
