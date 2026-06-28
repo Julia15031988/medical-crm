@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.configuration.dependencies import (
     get_db,
     only_admin,
     only_doctor_or_admin,
+    get_current_user
 )
 from app.crud.patient import (
     create_patient,
@@ -20,6 +20,8 @@ router = APIRouter(
     prefix="/patients",
     tags=["Patients"],
 )
+
+
 
 
 @router.post(
@@ -42,6 +44,23 @@ async def create_patient_profile(
         )
 
     return await create_patient(db, user_id, patient_data)
+
+
+
+@router.get("/me", response_model=PatientResponse)
+async def read_my_patient_profile(
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    patient = await get_patient_by_id(db, current_user.id)
+
+    if patient is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Patient profile not found.",
+        )
+
+    return patient
 
 
 @router.get(
