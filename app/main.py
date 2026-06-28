@@ -1,8 +1,14 @@
-#import sys
-#import os
-#sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from fastapi import FastAPI
-from app.routers import auth_register_login
 
-app = FastAPI()
-app.include_router(auth_register_login.router)
+from app.routers.auth_register_login import router as auth_router
+from app.routers.patient import router as patient_router
+
+app = FastAPI(title="TEST MAIN WITH PATIENT")
+
+app.include_router(auth_router)
+app.include_router(patient_router)
+
+
+@app.get("/test-patient-router")
+async def test_patient_router():
+    return {"status": "patient router test"}

@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta
 import secrets
 
-from app.databasemodels.modelsauth import (
+from app.databasemodels.models_auth import (
     User,
     ActivationToken,
     PasswordResetToken,

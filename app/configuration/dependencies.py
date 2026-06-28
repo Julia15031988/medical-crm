@@ -7,11 +7,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from app.databasemodels.sessions import get_db
-from app.databasemodels.modelsauth import (
-    User,
-    DoctorProfile,
-    PatientProfile,
-)
+from app.databasemodels.models_auth import User
+from app.databasemodels.models_doctor import DoctorProfile
+from app.databasemodels.models_patient import PatientProfile
 #from app.security.token_manager import JWTAuthManager
 from app.security.getbearertoken import get_token
 from app.security.token_manager import JWTAuthManager
@@ -21,9 +19,12 @@ from app.configuration.settings import BaseAppSettings
 from app.exceptions.security import BaseSecurityError, TokenExpiredError
 from app.email_notifications.emails import EmailSenderInterface, EmailSender
 #from app.exceptions.storage import S3StorageInterface, S3StorageClient
+from fastapi import Depends, HTTPException, status
+from app.databasemodels.models_auth import User, UserRoleEnum
+from fastapi.security import OAuth2PasswordBearer
 
 
-#oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 
 def get_jwt_auth_manager() -> JWTAuthManager:
@@ -35,7 +36,7 @@ def get_jwt_auth_manager() -> JWTAuthManager:
 
 
 async def get_current_user(
-    token: str = Depends(get_token),
+    token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db),
     jwt: JWTAuthManager = Depends(get_jwt_auth_manager),
 ):
@@ -43,27 +44,27 @@ async def get_current_user(
         payload = jwt.decode_access_token(token)
     except Exception:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
         )
+
     user_id = payload.get("user_id")
+
     if not user_id:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token payload",
         )
+
     q = await db.execute(select(User).where(User.id == user_id))
     user = q.scalars().first()
+
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
         )
-    return user
 
-
-def get_current_admin(user: User = Depends(get_current_user)):
-    if user.group_id == 1:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="You do not have permission"
-        )
     return user
 
 
@@ -106,20 +107,75 @@ def get_accounts_email_notificator(
 
 
 async def get_current_user_id(
-    token: str = Depends(get_token),
+    token: str = Depends(oauth2_scheme),
     jwt_manager: JWTAuthManagerInterface = Depends(get_jwt_auth_manager),
 ) -> int:
-    """
-    Extracts the user ID from the provided JWT token.
-    """
     try:
         payload = jwt_manager.decode_access_token(token)
-        user_id = int(payload.get("user_id"))
+        user_id = payload.get("user_id")
+
         if user_id is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token: user_id missing",
             )
-        return user_id
+
+        return int(user_id)
+
     except BaseSecurityError as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(e),
+        )
+
+
+async def only_admin(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    if current_user.role != UserRoleEnum.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can perform this action.",
+        )
+
+    return current_user
+
+
+async def only_doctor(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    if current_user.role != UserRoleEnum.DOCTOR:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only doctors can perform this action.",
+        )
+
+    return current_user
+
+
+async def only_patient(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    if current_user.role != UserRoleEnum.PATIENT:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only patients can perform this action.",
+        )
+
+    return current_user
+
+
+async def only_doctor_or_admin(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    if current_user.role not in (
+        UserRoleEnum.DOCTOR,
+        UserRoleEnum.ADMIN,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only doctors or administrators can perform this action.",
+        )
+
+    return current_user
+

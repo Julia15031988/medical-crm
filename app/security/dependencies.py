@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.databasemodels.sessions import get_db
-from app.databasemodels.modelsauth import User, UserRoleEnum
+from app.databasemodels.models_auth import User, UserRoleEnum
 from app.security.interfaces import JWTAuthManagerInterface
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")

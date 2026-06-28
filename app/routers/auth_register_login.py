@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
 from datetime import datetime, timedelta
 from app.databasemodels.sessions import get_db
-from app.databasemodels.modelsauth import User, PasswordResetToken
+from app.databasemodels.models_auth import User, PasswordResetToken
 from app.security.passwords import hash_password, verify_password
 from app.security.token_manager import JWTAuthManager
 from app.configuration.dependencies import get_jwt_auth_manager

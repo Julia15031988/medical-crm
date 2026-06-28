@@ -1,20 +1,21 @@
-from pathlib import Path
 import os
-from pydantic_settings import BaseSettings
 from functools import lru_cache
+from pathlib import Path
 from typing import Any
+
+from pydantic_settings import BaseSettings
 
 
 class BaseAppSettings(BaseSettings):
     BASE_DIR: Path = Path(__file__).parent.parent
-    PATH_TO_DB: str = str(BASE_DIR / "database" / "medical_crm.db")
-    PATH_TO_PATIENTS_CSV: str = str(BASE_DIR / "database" / "seed_data" / "patients.csv")
 
     # --- Email templates ---
-    PATH_TO_EMAIL_TEMPLATES_DIR: str = str(BASE_DIR / "notifications" / "templates")
-    ACTIVATION_EMAIL_TEMPLATE_NAME: str = "activation_request.html"
+    PATH_TO_EMAIL_TEMPLATES_DIR: str = str(
+        BASE_DIR / "email_notifications" / "templates"
+    )
+    ACTIVATION_EMAIL_TEMPLATE_NAME: str = "activation.html"
     ACTIVATION_COMPLETE_EMAIL_TEMPLATE_NAME: str = "activation_complete.html"
-    PASSWORD_RESET_TEMPLATE_NAME: str = "password_reset_request.html"
+    PASSWORD_RESET_TEMPLATE_NAME: str = "password_reset.html"
     PASSWORD_RESET_COMPLETE_TEMPLATE_NAME: str = "password_reset_complete.html"
     PASSWORD_CHANGE_NAME: str = "password_change.html"
 
@@ -24,23 +25,23 @@ class BaseAppSettings(BaseSettings):
 
     LOGIN_TIME_DAYS: int = 7
 
-    # --- Email SMTP ---
-    EMAIL_HOST: str = os.getenv("EMAIL_HOST", "host")
-    EMAIL_PORT: int = int(os.getenv("EMAIL_PORT", 25))
-    EMAIL_HOST_USER: str = os.getenv("EMAIL_HOST_USER", "testuser")
-    EMAIL_HOST_PASSWORD: str = os.getenv("EMAIL_HOST_PASSWORD", "test_password")
-    EMAIL_USE_TLS: bool = os.getenv("EMAIL_USE_TLS", "False").lower() == "true"
+    # --- Email SMTP / MailHog ---
+    EMAIL_HOST: str = "mailhog"
+    EMAIL_PORT: int = 1025
+    EMAIL_HOST_USER: str = ""
+    EMAIL_HOST_PASSWORD: str = ""
+    EMAIL_USE_TLS: bool = False
 
-    # --- Queue/Tasks ---
-    CELERY_BROKER_URL: str = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
-    CELERY_RESULT_BACKEND: str = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
+    # --- Queue / Tasks ---
+    CELERY_BROKER_URL: str = "redis://redis:6379/0"
+    CELERY_RESULT_BACKEND: str = "redis://redis:6379/1"
 
-    # --- Storage ---
-    S3_STORAGE_HOST: str = os.getenv("MINIO_HOST", "minio-crm")
-    S3_STORAGE_PORT: int = int(os.getenv("MINIO_PORT", 9000))
-    S3_STORAGE_ACCESS_KEY: str = os.getenv("MINIO_ROOT_USER", "minioadmin")
-    S3_STORAGE_SECRET_KEY: str = os.getenv("MINIO_ROOT_PASSWORD", "some_password")
-    S3_BUCKET_NAME: str = os.getenv("MINIO_STORAGE", "crm-storage")
+    # --- Storage / MinIO ---
+    S3_STORAGE_HOST: str = "minio"
+    S3_STORAGE_PORT: int = 9000
+    S3_STORAGE_ACCESS_KEY: str = "minioadmin"
+    S3_STORAGE_SECRET_KEY: str = "minioadmin"
+    S3_BUCKET_NAME: str = "crm-storage"
 
     @property
     def S3_STORAGE_ENDPOINT(self) -> str:
@@ -48,28 +49,28 @@ class BaseAppSettings(BaseSettings):
 
     class Config:
         env_file = ".env"
+        extra = "ignore"
 
 
 class Settings(BaseAppSettings):
     # --- Database ---
-    POSTGRES_USER: str = os.getenv("POSTGRES_USER", "crm_user")
-    POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "crm_password")
-    POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "localhost")
-    POSTGRES_DB_PORT: int = int(os.getenv("POSTGRES_DB_PORT", "5432"))
-    POSTGRES_DB: str = os.getenv("POSTGRES_DB", "crm_db")
-    DATABASE_URL: str = os.getenv("DATABASE_URL")
+    POSTGRES_USER: str = "crm_user"
+    POSTGRES_PASSWORD: str = "crm_password"
+    POSTGRES_HOST: str = "db"
+    POSTGRES_DB_PORT: int = 5432
+    POSTGRES_DB: str = "medical_crm"
 
     # --- JWT ---
-    SECRET_KEY_ACCESS: str = os.getenv("SECRET_KEY_ACCESS", os.urandom(32).hex())
-    SECRET_KEY_REFRESH: str = os.getenv("SECRET_KEY_REFRESH", os.urandom(32).hex())
-    JWT_SIGNING_ALGORITHM: str = os.getenv("JWT_SIGNING_ALGORITHM", "HS256")
-    ALGORITHM: str = os.getenv("ALGORITHM", "HS256")   # ← додано
+    SECRET_KEY_ACCESS: str = "change_me_access_secret"
+    SECRET_KEY_REFRESH: str = "change_me_refresh_secret"
+    JWT_SIGNING_ALGORITHM: str = "HS256"
+    ALGORITHM: str = "HS256"
 
     # --- Token lifetimes ---
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
-    REFRESH_TOKEN_EXPIRE_DAYS: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "30"))
-    ACTIVATION_TOKEN_EXPIRE_HOURS: int = int(os.getenv("ACTIVATION_TOKEN_EXPIRE_HOURS", "24"))  # ← додано
-    PASSWORD_RESET_TOKEN_EXPIRE_HOURS: int = int(os.getenv("PASSWORD_RESET_TOKEN_EXPIRE_HOURS", "2"))  # ← додано
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+    ACTIVATION_TOKEN_EXPIRE_HOURS: int = 24
+    PASSWORD_RESET_TOKEN_EXPIRE_HOURS: int = 2
 
     @property
     def DATABASE_URL(self) -> str:
@@ -82,26 +83,31 @@ class Settings(BaseAppSettings):
 
 
 class TestingSettings(BaseAppSettings):
-    SECRET_KEY_ACCESS: str = "SECRET_KEY_ACCESS"
-    SECRET_KEY_REFRESH: str = "SECRET_KEY_REFRESH"
-    ACTIVATION_TOKEN_EXPIRE_HOURS: int = 24
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
-    PASSWORD_RESET_TOKEN_EXPIRE_HOURS: int = 2
+    # --- Test DB ---
     DATABASE_URL: str = "sqlite+aiosqlite:///./test.db"
-    JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
-    JWT_SIGNING_ALGORITHM: str = os.getenv("JWT_SIGNING_ALGORITHM", "HS256")
-    ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
+
+    # --- JWT ---
+    SECRET_KEY_ACCESS: str = "test_access_secret"
+    SECRET_KEY_REFRESH: str = "test_refresh_secret"
+    JWT_SIGNING_ALGORITHM: str = "HS256"
+    ALGORITHM: str = "HS256"
+
+    # --- Token lifetimes ---
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+    ACTIVATION_TOKEN_EXPIRE_HOURS: int = 24
+    PASSWORD_RESET_TOKEN_EXPIRE_HOURS: int = 2
 
     def model_post_init(self, __context: dict[str, Any] | None = None) -> None:
-        object.__setattr__(self, "PATH_TO_DB", "sqlite+aiosqlite:///./test.db")
+        object.__setattr__(self, "DATABASE_URL", "sqlite+aiosqlite:///./test.db")
 
 
 @lru_cache
 def get_settings() -> BaseAppSettings:
-    # для тестів
-    return TestingSettings()
-    # для продакшн
-    # return Settings()
+    if os.getenv("ENVIRONMENT", "local") == "testing":
+        return TestingSettings()
 
-# Використовуй get_settings() замість прямого Settings()
+    return Settings()
+
+
 settings = get_settings()
