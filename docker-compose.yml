@@ -20,6 +20,7 @@ services:
     command: >
       sh -c "
       /app/commands/run_migration.sh &&
+      python -m app.scripts.create_admin &&
       /app/commands/run_web_server.sh
       "
 
@@ -40,3 +41,4 @@ services:
 
 volumes:
   postgres_data:
+
