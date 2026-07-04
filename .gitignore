@@ -170,3 +170,21 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Alembic cache
+migrations/__pycache__/
+migrations/versions/__pycache__/
+
+# Local-only init script
+init_db.py
+
+# Ruff
+.ruff_cache/
+ruff_errors.txt
+
+# VS Code
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
