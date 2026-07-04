@@ -1,24 +1,11 @@
-import os
-import re
-from typing import Awaitable, Callable
-from fastapi import Depends, HTTPException, Request, UploadFile, status
-from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
 from app.databasemodels.sessions import get_db
-from app.databasemodels.models_auth import User
-from app.databasemodels.models_doctor import DoctorProfile
-from app.databasemodels.models_patient import PatientProfile
-#from app.security.token_manager import JWTAuthManager
-from app.security.getbearertoken import get_token
 from app.security.token_manager import JWTAuthManager
 from app.security.interfaces import JWTAuthManagerInterface
-from app.configuration.settings import settings
-from app.configuration.settings import BaseAppSettings
-from app.exceptions.security import BaseSecurityError, TokenExpiredError
+from app.configuration.settings import BaseAppSettings, settings
+from app.exceptions.security import BaseSecurityError
 from app.email_notifications.emails import EmailSenderInterface, EmailSender
-#from app.exceptions.storage import S3StorageInterface, S3StorageClient
 from fastapi import Depends, HTTPException, status
 from app.databasemodels.models_auth import User, UserRoleEnum
 from fastapi.security import OAuth2PasswordBearer
@@ -31,7 +18,7 @@ def get_jwt_auth_manager() -> JWTAuthManager:
     return JWTAuthManager(
         secret_key_access=settings.SECRET_KEY_ACCESS,
         secret_key_refresh=settings.SECRET_KEY_REFRESH,
-        algorithm=settings.JWT_ALGORITHM,
+        algorithm=settings.ALGORITHM,
     )
 
 
@@ -69,8 +56,7 @@ async def get_current_user(
 
 
 def get_accounts_email_notificator(
-    #ettings: BaseAppSettings = Depends(get_settings),
-    settings: BaseAppSettings = settings
+    settings: BaseAppSettings = settings,
 ) -> EmailSenderInterface:
     """
     Retrieve an instance of the EmailSenderInterface configured with the application settings.
@@ -178,4 +164,3 @@ async def only_doctor_or_admin(
         )
 
     return current_user
-

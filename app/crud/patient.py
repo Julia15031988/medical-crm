@@ -1,7 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.databasemodels.models_patient  import PatientProfile
+from app.databasemodels.models_patient import PatientProfile
 from app.schemas.patient import PatientCreate, PatientUpdate
 
 
@@ -37,11 +37,7 @@ async def get_patients(
     skip: int = 0,
     limit: int = 100,
 ) -> list[PatientProfile]:
-    result = await db.execute(
-        select(PatientProfile)
-        .offset(skip)
-        .limit(limit)
-    )
+    result = await db.execute(select(PatientProfile).offset(skip).limit(limit))
     return list(result.scalars().all())
 
 

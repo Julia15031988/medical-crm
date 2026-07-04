@@ -1,8 +1,13 @@
 import enum
 from datetime import datetime
-
+from sqlalchemy import func
 from sqlalchemy import DateTime, Enum, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.databasemodels.models_doctor import DoctorProfile
+    from app.databasemodels.models_patient import PatientProfile
 
 from app.databasemodels.base import Base
 
@@ -21,7 +26,7 @@ class Appointment(Base):
     )
 
     patient_id: Mapped[int] = mapped_column(
-        ForeignKey("patient_profiles.patient_id"),
+        ForeignKey("patient_profiles.id"),
         nullable=False,
     )
 
@@ -32,6 +37,12 @@ class Appointment(Base):
 
     appointment_date: Mapped[datetime] = mapped_column(
         DateTime,
+        nullable=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
         nullable=False,
     )
 

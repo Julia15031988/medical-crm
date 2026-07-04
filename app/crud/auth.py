@@ -21,7 +21,10 @@ async def get_user_by_email(db: AsyncSession, email: str):
 
 
 async def create_user(
-    db: AsyncSession, email: str, password: str, role: UserRoleEnum = UserRoleEnum.PATIENT
+    db: AsyncSession,
+    email: str,
+    password: str,
+    role: UserRoleEnum = UserRoleEnum.PATIENT,
 ):
     existing = await get_user_by_email(db, email)
     if existing:
@@ -62,8 +65,9 @@ async def verify_activation_token(db: AsyncSession, token: str):
 
 
 async def create_refresh_token(db: AsyncSession, user_id: int):
-    token, expires = secrets.token_urlsafe(64), datetime.now() + timedelta(
-        days=settings.REFRESH_TOKEN_EXPIRE_DAYS
+    token, expires = (
+        secrets.token_urlsafe(64),
+        datetime.now() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
     )
     rt = RefreshToken(user_id=user_id, token=token, expires_at=expires)
     db.add(rt)

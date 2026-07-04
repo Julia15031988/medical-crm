@@ -8,10 +8,10 @@ from alembic import context
 from app.configuration.settings import settings
 
 from app.databasemodels.base import Base
-from app.databasemodels import models_auth
-from app.databasemodels import models_patient
-from app.databasemodels import models_doctor
-from app.databasemodels import models_appointment
+from app.databasemodels import models_auth  # noqa: F401
+from app.databasemodels import models_patient  # noqa: F401
+from app.databasemodels import models_doctor  # noqa: F401
+from app.databasemodels import models_appointment  # noqa: F401
 
 
 # this is the Alembic Config object, which provides
@@ -72,9 +72,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

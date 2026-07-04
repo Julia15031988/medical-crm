@@ -11,7 +11,6 @@ from app.email_notifications.interfaces import EmailSenderInterface
 
 
 class EmailSender(EmailSenderInterface):
-
     def __init__(
         self,
         hostname: str,

@@ -1,6 +1,12 @@
 import enum
 from datetime import date
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.databasemodels.models_auth import User
+    from app.databasemodels.models_appointment import Appointment
+
 from sqlalchemy import Date, Enum, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -15,10 +21,16 @@ class GenderEnum(enum.Enum):
 class PatientProfile(Base):
     __tablename__ = "patient_profiles"
 
-    patient_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id"),
+    id: Mapped[int] = mapped_column(
         primary_key=True,
     )
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"),
+        unique=True,
+        nullable=False,
+    )
+
     gender: Mapped[GenderEnum] = mapped_column(
         Enum(GenderEnum, name="genders"),
         nullable=False,

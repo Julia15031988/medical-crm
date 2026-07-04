@@ -19,9 +19,7 @@ def validate_password(password: str) -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Create initial admin user."
-    )
+    parser = argparse.ArgumentParser(description="Create initial admin user.")
     parser.add_argument(
         "--email",
         required=True,
@@ -47,9 +45,7 @@ async def create_initial_admin(
     last_name: str,
 ) -> None:
     async with AsyncSessionLocal() as session:
-        result = await session.execute(
-            select(User).where(User.email == email)
-        )
+        result = await session.execute(select(User).where(User.email == email))
         existing_user = result.scalar_one_or_none()
 
         if existing_user:

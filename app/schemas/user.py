@@ -22,7 +22,7 @@ class BaseEmailPasswordSchema(BaseModel):
 
 # --- Signup ---
 class UserRegistrationRequestSchema(BaseEmailPasswordSchema):
-    role: UserRoleEnum = UserRoleEnum.PATIENT   # пацієнт реєструється сам
+    role: UserRoleEnum = UserRoleEnum.PATIENT  # пацієнт реєструється сам
 
 
 class UserRegistrationResponseSchema(BaseModel):

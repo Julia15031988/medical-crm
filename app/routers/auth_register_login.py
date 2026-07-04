@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
-from datetime import datetime, timedelta
+from datetime import datetime
 from app.databasemodels.sessions import get_db
 from app.databasemodels.models_auth import User, PasswordResetToken
 from app.security.passwords import hash_password, verify_password
@@ -18,8 +18,7 @@ from app.crud.auth import (
     create_refresh_token,
     revoke_refresh_token,
     get_refresh_token,
-    create_password_reset_token,
-    verify_password_reset_token,
+    create_password_reset_token
 )
 from app.schemas.user import (
     UserRegistrationRequestSchema,
@@ -174,7 +173,6 @@ async def forgot_password(
     pr = await create_password_reset_token(db, user)
     link = f"https://your-frontend/reset-password?token={pr.token}"
 
-
     await email_sender.send_password_reset_email(user.email, link)
     return {"detail": "If the email is registered, a reset link was sent"}
 
@@ -218,4 +216,3 @@ async def change_password(
     current_user.hashed_password = hash_password(payload.new_password)
     await db.commit()
     return {"detail": "Password changed"}
-

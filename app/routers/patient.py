@@ -4,7 +4,7 @@ from app.configuration.dependencies import (
     get_db,
     only_admin,
     only_doctor_or_admin,
-    get_current_user
+    get_current_user,
 )
 from app.crud.patient import (
     create_patient,
@@ -20,8 +20,6 @@ router = APIRouter(
     prefix="/patients",
     tags=["Patients"],
 )
-
-
 
 
 @router.post(
@@ -44,7 +42,6 @@ async def create_patient_profile(
         )
 
     return await create_patient(db, user_id, patient_data)
-
 
 
 @router.get("/me", response_model=PatientResponse)

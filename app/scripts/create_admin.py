@@ -10,6 +10,7 @@ from app.databasemodels.models_doctor import DoctorProfile  # noqa: F401
 from app.databasemodels.models_patient import PatientProfile  # noqa: F401
 from app.databasemodels.models_appointment import Appointment  # noqa: F401
 
+
 async def create_admin() -> None:
     admin_email = os.getenv("ADMIN_EMAIL")
     admin_password = os.getenv("ADMIN_PASSWORD")
@@ -21,9 +22,7 @@ async def create_admin() -> None:
         return
 
     async with AsyncSessionLocal() as session:
-        result = await session.execute(
-            select(User).where(User.email == admin_email)
-        )
+        result = await session.execute(select(User).where(User.email == admin_email))
         existing_admin = result.scalar_one_or_none()
 
         if existing_admin:
