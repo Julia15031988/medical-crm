@@ -1,0 +1,5 @@
+TITLE = ("Arial", 30, "bold")
+SUBTITLE = ("Arial", 22, "bold")
+TEXT = ("Arial", 16)
+SMALL = ("Arial", 13)
+BUTTON = ("Arial", 15, "bold")

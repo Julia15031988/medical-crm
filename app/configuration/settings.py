@@ -3,10 +3,12 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class BaseAppSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
     BASE_DIR: Path = Path(__file__).parent.parent
 
     # --- Email templates ---
@@ -47,10 +49,6 @@ class BaseAppSettings(BaseSettings):
     def S3_STORAGE_ENDPOINT(self) -> str:
         return f"http://{self.S3_STORAGE_HOST}:{self.S3_STORAGE_PORT}"
 
-    class Config:
-        env_file = ".env"
-        extra = "ignore"
-
 
 class Settings(BaseAppSettings):
     # --- Database ---
@@ -81,6 +79,12 @@ class Settings(BaseAppSettings):
             f"{self.POSTGRES_DB}"
         )
 
+    @property
+    def SYNC_DATABASE_URL(self) -> str:
+        return self.DATABASE_URL.replace(
+            "postgresql+asyncpg",
+            "postgresql+psycopg",
+        )
 
 class TestingSettings(BaseAppSettings):
     # --- Test DB ---

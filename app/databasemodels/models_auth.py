@@ -1,12 +1,6 @@
 import enum
 from datetime import datetime
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from app.databasemodels.models_doctor import DoctorProfile
-    from app.databasemodels.models_patient import PatientProfile
-
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -29,23 +23,28 @@ class User(Base):
         unique=True,
         nullable=False,
     )
+
     hashed_password: Mapped[str] = mapped_column(
         String,
         nullable=False,
     )
+
     role: Mapped[UserRoleEnum] = mapped_column(
         Enum(UserRoleEnum, name="user_roles"),
         nullable=False,
     )
+
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         default=True,
         nullable=False,
     )
+
     first_name: Mapped[str | None] = mapped_column(
         String(50),
         nullable=True,
     )
+
     last_name: Mapped[str | None] = mapped_column(
         String(50),
         nullable=True,
@@ -71,34 +70,25 @@ class User(Base):
         cascade="all, delete-orphan",
     )
 
-    doctor_profile: Mapped["DoctorProfile | None"] = relationship(
-        "DoctorProfile",
-        uselist=False,
-        back_populates="user",
-    )
-
-    patient_profile: Mapped["PatientProfile | None"] = relationship(
-        "PatientProfile",
-        uselist=False,
-        back_populates="user",
-    )
-
 
 class ActivationToken(Base):
     __tablename__ = "activation_tokens"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id"),
         unique=True,
         nullable=False,
     )
+
     token: Mapped[str] = mapped_column(
         String(255),
         unique=True,
         nullable=False,
         index=True,
     )
+
     expires_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,
@@ -114,17 +104,20 @@ class PasswordResetToken(Base):
     __tablename__ = "password_reset_tokens"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id"),
         unique=True,
         nullable=False,
     )
+
     token: Mapped[str] = mapped_column(
         String(255),
         unique=True,
         nullable=False,
         index=True,
     )
+
     expires_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,
@@ -140,16 +133,19 @@ class RefreshToken(Base):
     __tablename__ = "refresh_tokens"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id"),
         nullable=False,
     )
+
     token: Mapped[str] = mapped_column(
         String(255),
         unique=True,
         nullable=False,
         index=True,
     )
+
     expires_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,

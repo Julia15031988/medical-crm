@@ -1,29 +1,27 @@
 import enum
-from datetime import datetime
-from sqlalchemy import func
-from sqlalchemy import DateTime, Enum, ForeignKey, String, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from datetime import date, time
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from app.databasemodels.models_doctor import DoctorProfile
-    from app.databasemodels.models_patient import PatientProfile
+from sqlalchemy import Date, Enum, ForeignKey, String, Time
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.databasemodels.base import Base
+
+if TYPE_CHECKING:
+    from app.databasemodels.models_patient import PatientProfile
+    from app.databasemodels.models_doctor import DoctorProfile
 
 
 class AppointmentStatusEnum(enum.Enum):
     SCHEDULED = "SCHEDULED"
     COMPLETED = "COMPLETED"
-    CANCELLED = "CANCELLED"
+    CANCELED = "CANCELED"
 
 
 class Appointment(Base):
     __tablename__ = "appointments"
 
-    appointment_id: Mapped[int] = mapped_column(
-        primary_key=True,
-    )
+    id: Mapped[int] = mapped_column(primary_key=True)
 
     patient_id: Mapped[int] = mapped_column(
         ForeignKey("patient_profiles.id"),
@@ -31,36 +29,21 @@ class Appointment(Base):
     )
 
     doctor_id: Mapped[int] = mapped_column(
-        ForeignKey("doctor_profiles.doctor_id"),
+        ForeignKey("doctor_profiles.id"),
         nullable=False,
     )
 
-    appointment_date: Mapped[datetime] = mapped_column(
-        DateTime,
-        nullable=False,
-    )
+    appointment_date: Mapped[date] = mapped_column(Date, nullable=False)
 
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        nullable=False,
-    )
-
-    reason_for_visit: Mapped[str] = mapped_column(
-        String(255),
-        nullable=False,
-    )
+    appointment_time: Mapped[time] = mapped_column(Time, nullable=False)
 
     status: Mapped[AppointmentStatusEnum] = mapped_column(
-        Enum(AppointmentStatusEnum, name="appointment_status"),
-        default=AppointmentStatusEnum.SCHEDULED,
+        Enum(AppointmentStatusEnum, name="appointment_statuses"),
         nullable=False,
+        default=AppointmentStatusEnum.SCHEDULED,
     )
 
-    notes: Mapped[str | None] = mapped_column(
-        Text,
-        nullable=True,
-    )
+    reason: Mapped[str] = mapped_column(String(255), nullable=False)
 
     patient: Mapped["PatientProfile"] = relationship(
         "PatientProfile",

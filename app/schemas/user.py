@@ -1,40 +1,60 @@
-from pydantic import BaseModel, field_validator, EmailStr
-from app.databasemodels.validators.accountsvalidators import validate_password_strength
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    field_validator,
+)
+
 from app.databasemodels.models_auth import UserRoleEnum
+from app.databasemodels.validators.accountsvalidators import (
+    validate_password_strength,
+)
 
 
-class BaseEmailPasswordSchema(BaseModel):
-    email: EmailStr
-    password: str
+class BaseEmailSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
 
-    model_config = {"from_attributes": True}
+    email: EmailStr = Field(..., description="User email address")
 
     @field_validator("email")
     @classmethod
-    def validate_email(cls, value):
+    def validate_email(cls, value: str) -> str:
         return value.lower()
+
+
+class BaseEmailPasswordSchema(BaseEmailSchema):
+    password: str = Field(
+        ...,
+        min_length=8,
+        description="User password",
+    )
 
     @field_validator("password")
     @classmethod
-    def validate_password(cls, value):
+    def validate_password(cls, value: str) -> str:
         return validate_password_strength(value)
 
 
-# --- Signup ---
+# -------------------- Registration --------------------
+
+
 class UserRegistrationRequestSchema(BaseEmailPasswordSchema):
-    role: UserRoleEnum = UserRoleEnum.PATIENT  # пацієнт реєструється сам
+    role: UserRoleEnum = UserRoleEnum.ADMIN
 
 
 class UserRegistrationResponseSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     email: EmailStr
     role: UserRoleEnum
     is_active: bool
 
-    model_config = {"from_attributes": True}
+
+# -------------------- Login --------------------
 
 
-# --- Login ---
 class UserLoginRequestSchema(BaseEmailPasswordSchema):
     pass
 
@@ -46,39 +66,46 @@ class UserLoginResponseSchema(BaseModel):
     expires_in: int
 
 
-# --- Logout ---
+# -------------------- Logout --------------------
+
+
 class UserLogoutRequestSchema(BaseModel):
     refresh_token: str
 
 
-# --- Change password ---
+# -------------------- Change password --------------------
+
+
 class UserChangePasswordRequestSchema(BaseModel):
     old_password: str
     new_password: str
 
     @field_validator("new_password")
     @classmethod
-    def validate_password(cls, value):
+    def validate_password(cls, value: str) -> str:
         return validate_password_strength(value)
 
 
-# --- Reset password ---
-class PasswordResetRequestSchema(BaseModel):
-    email: EmailStr
+# -------------------- Password reset --------------------
 
 
-class PasswordResetCompleteRequestSchema(BaseModel):
+class PasswordResetRequestSchema(BaseEmailSchema):
+    pass
+
+
+class PasswordResetCompleteRequestSchema(BaseEmailSchema):
     token: str
-    email: EmailStr
     new_password: str
 
     @field_validator("new_password")
     @classmethod
-    def validate_password(cls, value):
+    def validate_password(cls, value: str) -> str:
         return validate_password_strength(value)
 
 
-# --- Token refresh ---
+# -------------------- Refresh token --------------------
+
+
 class TokenRefreshRequestSchema(BaseModel):
     refresh_token: str
 
@@ -88,10 +115,15 @@ class TokenRefreshResponseSchema(BaseModel):
     token_type: str = "bearer"
 
 
-# --- Messages ---
+# -------------------- Email activation --------------------
+
+
+class ResendActivationRequestSchema(BaseEmailSchema):
+    pass
+
+
+# -------------------- Common responses --------------------
+
+
 class MessageResponseSchema(BaseModel):
     message: str
-
-
-class ResendActivationRequestSchema(BaseModel):
-    email: EmailStr

@@ -11,8 +11,10 @@ from app.databasemodels.models_auth import User, UserRoleEnum
 from fastapi.security import OAuth2PasswordBearer
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
-
+#oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="/api/v1/auth/token"
+)
 
 def get_jwt_auth_manager() -> JWTAuthManager:
     return JWTAuthManager(

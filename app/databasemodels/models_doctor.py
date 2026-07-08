@@ -1,55 +1,44 @@
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-import enum
-from sqlalchemy import Enum, ForeignKey, Integer, String
-from app.databasemodels.base import Base
-
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from app.databasemodels.models_auth import User
     from app.databasemodels.models_appointment import Appointment
 
+from sqlalchemy import Integer, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-class EmploymentTypeEnum(enum.Enum):
-    FULL_TIME = "full-time"
-    PART_TIME = "part-time"
+from app.databasemodels.base import Base
 
 
 class DoctorProfile(Base):
     __tablename__ = "doctor_profiles"
 
-    doctor_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id"),
-        primary_key=True,
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    full_name: Mapped[str] = mapped_column(
+        String(150),
+        nullable=False,
     )
+
+    phone: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False,
+    )
+
+    email: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        unique=True,
+    )
+
     specialization: Mapped[str] = mapped_column(
         String(100),
         nullable=False,
     )
 
-    employment_type: Mapped[EmploymentTypeEnum] = mapped_column(
-        Enum(EmploymentTypeEnum, name="employment_type"),
-        nullable=False,
-        default=EmploymentTypeEnum.FULL_TIME,
-    )
-
-    years_experience: Mapped[int] = mapped_column(
+    experience_years: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
-    )
-
-    hospital_branch: Mapped[str] = mapped_column(
-        String(100),
-        nullable=False,
-    )
-    phone_number: Mapped[str] = mapped_column(
-        String(20),
-        nullable=False,
-    )
-
-    user: Mapped["User"] = relationship(
-        "User",
-        back_populates="doctor_profile",
+        default=0,
     )
 
     appointments: Mapped[list["Appointment"]] = relationship(

@@ -7,13 +7,9 @@ from app.schemas.patient import PatientCreate, PatientUpdate
 
 async def create_patient(
     db: AsyncSession,
-    user_id: int,
     patient_data: PatientCreate,
 ) -> PatientProfile:
-    patient = PatientProfile(
-        patient_id=user_id,
-        **patient_data.model_dump(),
-    )
+    patient = PatientProfile(**patient_data.model_dump())
 
     db.add(patient)
     await db.commit()
@@ -27,7 +23,7 @@ async def get_patient_by_id(
     patient_id: int,
 ) -> PatientProfile | None:
     result = await db.execute(
-        select(PatientProfile).where(PatientProfile.patient_id == patient_id)
+        select(PatientProfile).where(PatientProfile.id == patient_id)
     )
     return result.scalar_one_or_none()
 

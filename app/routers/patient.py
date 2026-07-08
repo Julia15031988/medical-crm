@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.configuration.dependencies import (
     get_db,
     only_admin,
     only_doctor_or_admin,
-    get_current_user,
 )
 from app.crud.patient import (
     create_patient,
@@ -17,47 +17,22 @@ from app.schemas.patient import PatientCreate, PatientResponse, PatientUpdate
 
 
 router = APIRouter(
-    prefix="/patients",
+    prefix="/api/v1/patients",
     tags=["Patients"],
 )
 
 
 @router.post(
-    "/{user_id}",
+    "/",
     response_model=PatientResponse,
     status_code=status.HTTP_201_CREATED,
 )
 async def create_patient_profile(
-    user_id: int,
     patient_data: PatientCreate,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(only_doctor_or_admin),
+    current_user=Depends(only_admin),
 ):
-    existing_patient = await get_patient_by_id(db, user_id)
-
-    if existing_patient:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Patient profile already exists.",
-        )
-
-    return await create_patient(db, user_id, patient_data)
-
-
-@router.get("/me", response_model=PatientResponse)
-async def read_my_patient_profile(
-    db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
-):
-    patient = await get_patient_by_id(db, current_user.id)
-
-    if patient is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Patient profile not found.",
-        )
-
-    return patient
+    return await create_patient(db, patient_data)
 
 
 @router.get(
@@ -101,7 +76,7 @@ async def update_patient_profile(
     patient_id: int,
     patient_data: PatientUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(only_doctor_or_admin),
+    current_user=Depends(only_admin),
 ):
     patient = await get_patient_by_id(db, patient_id)
 

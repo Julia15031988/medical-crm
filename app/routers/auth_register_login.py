@@ -9,6 +9,7 @@ from app.security.token_manager import JWTAuthManager
 from app.configuration.dependencies import get_jwt_auth_manager
 from app.configuration.settings import settings
 from app.email_notifications.emails import EmailSender
+from fastapi.security import OAuth2PasswordRequestForm
 from app.configuration.dependencies import get_current_user
 from app.crud.auth import (
     get_user_by_email,
@@ -64,10 +65,18 @@ async def register(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Email already registered"
         )
-    user = await create_user(db, email=payload.email, password=payload.password)
+    user = await create_user(
+        db,
+        email=payload.email,
+        password=payload.password,
+        role=payload.role,
+    )
+    user.is_active = True
+    await db.commit()
+    await db.refresh(user)
     at = await create_activation_token(db, user)
     link = f"https://your-frontend/activate?token={at.token}"
-    await email_sender.send_activation_email(user.email, link)
+    #await email_sender.send_activation_email(user.email, link)
     return user
 
 
@@ -121,6 +130,39 @@ async def login(
         )
     access_token = jwt.create_access_token({"user_id": user.id, "email": user.email})
     rt = await create_refresh_token(db, user.id)
+    return {
+        "access_token": access_token,
+        "refresh_token": rt.token,
+        "token_type": "bearer",
+        "expires_in": 60 * 60,
+    }
+
+
+@router.post("/token", response_model=UserLoginResponseSchema)
+async def token_login(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: AsyncSession = Depends(get_db),
+    jwt: JWTAuthManager = Depends(get_jwt_auth_manager),
+):
+    user = await get_user_by_email(db, form_data.username)
+
+    if not user or not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account not activated",
+        )
+
+    access_token = jwt.create_access_token(
+        {"user_id": user.id, "email": user.email}
+    )
+    rt = await create_refresh_token(db, user.id)
+
     return {
         "access_token": access_token,
         "refresh_token": rt.token,
